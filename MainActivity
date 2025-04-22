@@ -1,0 +1,53 @@
+package com.example.crmapp
+
+import android.os.Bundle
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import kotlinx.android.synthetic.main.activity_main.*
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var database: DatabaseReference
+    private lateinit var leadAdapter: LeadAdapter
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        database = FirebaseDatabase.getInstance().getReference("leads")
+        leadAdapter = LeadAdapter()
+
+        recyclerViewLeads.layoutManager = LinearLayoutManager(this)
+        recyclerViewLeads.adapter = leadAdapter
+
+        // Add new lead
+        addLeadButton.setOnClickListener {
+            val leadName = leadNameEditText.text.toString()
+            val leadEmail = leadEmailEditText.text.toString()
+
+            if (leadName.isNotEmpty() && leadEmail.isNotEmpty()) {
+                val leadId = database.push().key ?: return@setOnClickListener
+                val lead = Lead(leadId, leadName, leadEmail)
+                database.child(leadId).setValue(lead)
+                leadNameEditText.text.clear()
+                leadEmailEditText.text.clear()
+                Toast.makeText(this, "Lead Added", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Please fill out all fields", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Retrieve leads
+        database.get().addOnSuccessListener { dataSnapshot ->
+            val leadsList = mutableListOf<Lead>()
+            for (snapshot in dataSnapshot.children) {
+                val lead = snapshot.getValue(Lead::class.java)
+                lead?.let { leadsList.add(it) }
+            }
+            leadAdapter.submitList(leadsList)
+        }
+    }
+}
